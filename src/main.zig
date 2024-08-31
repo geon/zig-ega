@@ -15,6 +15,7 @@ pub fn main() !void {
     for (0..100) |y| {
         for (0..100) |x| {
             ega.drawPoint(@intCast(x), @intCast(y), 5);
+            ega.waitForFrame();
         }
     }
 }
