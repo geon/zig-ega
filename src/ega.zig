@@ -1,4 +1,6 @@
 const ports = @import("ports.zig");
+const inp = ports.inp;
+const outp = ports.outp;
 
 const BIOS_INTERRUPT_VIDEO = 0x10; // The BIOS video interrupt number.
 const SET_CURRENT_VIDEO_MODE = 0x0; // Interrupt service number.
@@ -18,9 +20,9 @@ pub fn waitForFrame() void {
     // The address of the input status register and crt controller.
     const videoIsr = 0x03da;
     // Wait for a vertical retrace.
-    while ((ports.inp(videoIsr) & 8) == 0) {}
+    while ((inp(videoIsr) & 8) == 0) {}
     // Wait for horizontal or vertical retrace.
-    while ((ports.inp(videoIsr) & 1) != 0) {}
+    while ((inp(videoIsr) & 1) != 0) {}
 }
 
 pub fn drawPoint(x: u16, y: u16, color: u8) void {
