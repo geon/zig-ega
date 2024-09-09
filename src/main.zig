@@ -11,6 +11,7 @@ comptime {
 pub fn main() !void {
     std.debug.print("Setting EGA mode.\r\n", .{});
 
+    ega.grantAccess();
     ega.setVideoMode();
 
     for (0..100) |y| {
