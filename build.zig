@@ -1,20 +1,25 @@
 const std = @import("std");
-const Build = std.Build;
-const Cpu = std.Target.Cpu;
 
-const FileRecipeStep = @import("dos.zig/src/build/FileRecipeStep.zig");
+// Although this function looks imperative, note that its job is to
+// declaratively construct a build graph that will be executed by an external
+// runner.
+pub fn build(b: *std.Build) void {
+    // Standard target options allows the person running `zig build` to choose
+    // what target to build for. Here we do not override the defaults, which
+    // means any target is allowed, and the default is native. Other options
+    // for restricting supported target set are available.
+    // const target = b.standardTargetOptions(.{});
 
-pub fn build(b: *Build) !void {
-    const optimize = switch (b.standardOptimizeOption(.{})) {
-        .Debug => .ReleaseSafe, // TODO: Support debug builds.
-        else => |opt| opt,
-    };
+    // Standard optimization options allow the person running `zig build` to select
+    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
+    // set a preferred release mode, allowing the user to decide how to optimize.
+    const optimize = b.standardOptimizeOption(.{});
 
-    const main_coff = b.addExecutable(.{
-        .name = "main",
+    const exe = b.addExecutable(.{
+        .name = "zig-ega.exe",
         .target = .{
             .cpu_arch = .x86,
-            .cpu_model = .{ .explicit = Cpu.Model.generic(.x86) },
+            .cpu_model = .{ .explicit = std.Target.Cpu.Model.generic(.x86) },
             .os_tag = .other,
         },
         .optimize = optimize,
@@ -22,30 +27,19 @@ pub fn build(b: *Build) !void {
         .single_threaded = true,
     });
 
-    main_coff.addModule("dos", b.addModule("dos", .{
-        .source_file = .{ .path = "dos.zig/src/dos.zig" },
-    }));
-
-    main_coff.setLinkerScriptPath(.{ .path = "dos.zig/src/djcoff.ld" });
-    main_coff.disable_stack_probing = true;
-    main_coff.strip = true;
-
-    const main_exe_inputs = [_]Build.LazyPath{
-        .{ .path = "dos.zig/deps/cwsdpmi/bin/CWSDSTUB.EXE" },
-        main_coff.addObjCopy(.{ .format = .bin }).getOutput(),
-    };
-    const main_exe = FileRecipeStep.create(b, concatFiles, &main_exe_inputs, .bin, "main.exe");
-
-    const installed_main = b.addInstallBinFile(main_exe.getOutput(), "main.exe");
-    b.getInstallStep().dependOn(&installed_main.step);
+    // This declares intent for the executable to be installed into the
+    // standard location when the user invokes the "install" step (the default
+    // step when running `zig build`).
+    b.installArtifact(exe);
 
     const run_in_dosbox = b.addSystemCommand(&[_][]const u8{"DOSbox"});
-    run_in_dosbox.addFileArg(installed_main.source);
+    run_in_dosbox.step.dependOn(b.getInstallStep());
+    // run_in_dosbox.addFileArg(.{ .cwd_relative = "DOS4GW.EXE" });
+    run_in_dosbox.addFileArg(exe.getEmittedBin());
 
-    const run = b.step("run", "Run the executable in DOSBox");
-    run.dependOn(&run_in_dosbox.step);
-}
-
-fn concatFiles(_: *Build, inputs: []std.fs.File, output: std.fs.File) !void {
-    for (inputs) |input| try output.writeFileAll(input, .{});
+    // This creates a build step. It will be visible in the `zig build --help` menu,
+    // and can be selected like this: `zig build run`
+    // This will evaluate the `run` step rather than the default, which is "install".
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_in_dosbox.step);
 }

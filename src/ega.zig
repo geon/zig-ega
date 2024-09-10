@@ -10,19 +10,6 @@ const VIDEO_MODE_EGA_640_350_16 = 0x10; // Video mode EGA 640 x 350, 16 colors.
 
 const bufferBaseAddress: *u8 = @ptrFromInt(0xa0000);
 
-pub fn grantAccess() void {
-    const segment = os.dpmi.Segment.create();
-    errdefer segment.destroy();
-
-    segment.setBaseAddress(@intFromPtr(bufferBaseAddress));
-    segment.setAccessRights(.{
-        .type = .data,
-        .flags = .{ .data = .{ .writeable = true } },
-        .granularity = .page,
-    });
-    segment.setLimit(0xffff);
-}
-
 pub fn setVideoMode() void {
     // 0x10 = BIOS_INTERRUPT_VIDEO
     asm volatile (
